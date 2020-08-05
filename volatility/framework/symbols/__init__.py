@@ -5,7 +5,6 @@
 import collections
 import collections.abc
 import enum
-import functools
 import logging
 from typing import Any, Dict, Iterable, Iterator, TypeVar
 

@@ -546,7 +546,7 @@ class Array(interfaces.objects.ObjectInterface, abc.Sequence):
             subtype."""
             if 'subtype' not in template.vol and 'count' not in template.vol:
                 raise ValueError("Array ObjectTemplate must be provided a count and subtype")
-            return template.vol.get('subtype', None).size * template.vol.get('count', 0)
+            return template.vol.get('subtype').size * template.vol.get('count', 0)
 
         @classmethod
         def children(cls, template: interfaces.objects.Template) -> List[interfaces.objects.Template]:

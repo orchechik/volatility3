@@ -22,6 +22,7 @@ from volatility.framework.symbols import native, metadata
 
 vollog = logging.getLogger(__name__)
 
+
 # ## TODO
 #
 # All symbol tables should take a label to an object template
@@ -48,7 +49,6 @@ vollog = logging.getLogger(__name__)
 
 
 def _construct_delegate_function(name: str, is_property: bool = False) -> Any:
-
     def _delegate_function(self, *args, **kwargs):
         if is_property:
             return getattr(self._delegate, name)
@@ -541,7 +541,7 @@ class Version3Format(Version2Format):
             raise exceptions.SymbolError(name, self.name, "Unknown symbol: {}".format(name))
         symbol_type = None
         if 'type' in symbol:
-            symbol_type = self._interdict_to_template(symbol['type'])
+            symbol_type = self._subresolve(self._interdict_to_template(symbol['type']))
 
         # Mask the addresses if necessary
         address = symbol['address'] + self.config.get('symbol_shift', 0)
@@ -551,6 +551,23 @@ class Version3Format(Version2Format):
                                                                       address = address,
                                                                       type = symbol_type)
         return self._symbol_cache[name]
+
+    def _subresolve(self, object_template: interfaces.objects.Template) -> interfaces.objects.Template:
+        """Resolves ReferenceTemplates in symbol_types
+
+        This recursively traverses down an ObjectTemplate replacing all ReferenceTemplates with looked-up types
+        Since looking up a type by name should also return templates that don't contain references,
+        we don't continue recursing down that branch
+
+        This should then be cached by the local table's symbol_cache, so this shouldn't add excessive time
+        """
+        for child in object_template.children:
+            if isinstance(child, objects.templates.ReferenceTemplate):
+                new_child = self.context.symbol_space.get_type(child.type_name)
+            else:
+                new_child = self._subresolve(child)
+            object_template.replace_child(new_child = new_child, old_child = child)
+        return object_template
 
 
 class Version4Format(Version3Format):
@@ -598,7 +615,7 @@ class Version5Format(Version4Format):
             raise exceptions.SymbolError(name, self.name, "Unknown symbol: {}".format(name))
         symbol_type = None
         if 'type' in symbol:
-            symbol_type = self._interdict_to_template(symbol['type'])
+            symbol_type = self._subresolve(self._interdict_to_template(symbol['type']))
         symbol_constant_data = None
         if 'constant_data' in symbol:
             symbol_constant_data = base64.b64decode(symbol.get('constant_data'))
